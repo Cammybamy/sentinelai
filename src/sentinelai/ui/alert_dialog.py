@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QTextCharFormat, QTextCursor
+from PyQt6.QtGui import QFont, QKeyEvent, QTextCharFormat, QTextCursor
 from PyQt6.QtWidgets import (
     QDialog,
     QFrame,
@@ -179,7 +179,7 @@ class AlertDialog(QDialog):
         btn_layout.setContentsMargins(20, 14, 20, 14)
         btn_layout.setSpacing(10)
 
-        advice = QLabel("Blocking clears your clipboard and cancels any pasted command.")
+        advice = QLabel("Block clears clipboard and cancels the command. Esc also blocks.")
         advice.setStyleSheet("color: #666666; font-size: 11px;")
         advice.setWordWrap(True)
         btn_layout.addWidget(advice, stretch=1)
@@ -206,6 +206,13 @@ class AlertDialog(QDialog):
         btn_layout.addWidget(block_btn)
 
         root.addWidget(footer)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        # Escape = Block (safe default; prevents accidentally dismissing the warning)
+        if event.key() == Qt.Key.Key_Escape:
+            self._on_block()
+        else:
+            super().keyPressEvent(event)
 
     def _on_block(self) -> None:
         self.user_decision = "blocked"

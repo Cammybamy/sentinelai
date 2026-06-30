@@ -73,6 +73,15 @@ def _parse_response(raw: str, ctx: CommandContext) -> Verdict:
     )
 
 
+# Cap command length sent to the LLM. Very long commands are almost certainly
+# obfuscated or padded — the rule engine catches them; no need to send 50k
+# characters into Ollama and risk a timeout or model hang.
+_MAX_CMD_LEN = 2_000
+
+# How long to wait for a single Ollama response before giving up.
+_LLM_TIMEOUT_SECS = 15.0
+
+
 def analyze(ctx: CommandContext, model: str = "llama3:latest") -> Verdict | None:
     """
     Send the command to a local Ollama model for analysis.
@@ -84,14 +93,22 @@ def analyze(ctx: CommandContext, model: str = "llama3:latest") -> Verdict | None
         logger.warning("ollama package not installed — LLM analysis unavailable")
         return None
 
+    command_text = ctx.command
+    truncated = False
+    if len(command_text) > _MAX_CMD_LEN:
+        command_text = command_text[:_MAX_CMD_LEN]
+        truncated = True
+
     user_message = (
         f"Shell type: {ctx.shell}\n"
-        f"Source: {ctx.source}\n\n"
-        f"Command to analyze:\n```\n{ctx.command}\n```"
+        f"Source: {ctx.source}\n"
+        + ("Note: command truncated to 2000 chars for analysis.\n" if truncated else "")
+        + f"\nCommand to analyze:\n```\n{command_text}\n```"
     )
 
     try:
-        response = ollama.chat(
+        client = ollama.Client(timeout=_LLM_TIMEOUT_SECS)
+        response = client.chat(
             model=model,
             messages=[
                 {"role": "system", "content": _SYSTEM_PROMPT},

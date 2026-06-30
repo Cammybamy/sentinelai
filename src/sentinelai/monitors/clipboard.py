@@ -13,26 +13,45 @@ logger = logging.getLogger(__name__)
 
 # First token of the command must match one of these to be flagged.
 _COMMAND_STARTERS = frozenset([
-    "curl", "wget", "powershell", "powershell.exe", "pwsh", "pwsh.exe",
+    # Download tools
+    "curl", "wget",
+    # PowerShell
+    "powershell", "powershell.exe", "pwsh", "pwsh.exe",
+    "iex", "irm", "iwr", "invoke-expression", "invoke-webrequest", "start-process",
+    # POSIX shells
     "bash", "sh", "zsh", "fish", "dash",
+    # Interpreted languages (inline -c / -e / -r execution is a common attack vector)
     "python", "python3", "python.exe",
+    "ruby", "ruby.exe",
+    "perl", "perl.exe",
+    "node", "node.exe",
+    "php", "php.exe",
+    "lua", "lua.exe",
+    # Dynamic evaluation — exec/eval as first word catches one-liner paste attacks
+    "exec", "eval",
+    # Package runners
     "pip", "pip3", "pip.exe",
-    "sudo", "su", "doas",
     "npm", "yarn", "npx", "pnpm",
-    "iex", "irm", "iwr",
-    "invoke-expression", "invoke-webrequest", "start-process",
+    # Privilege escalation
+    "sudo", "su", "doas",
+    # Destructive / persistence
     "chmod", "chown", "rm", "del", "rmdir",
     "reg", "regedit", "schtasks", "sc.exe",
+    # Networking / reverse shells
     "nohup", "nc", "ncat", "netcat", "socat",
+    # Windows shell
     "cmd", "cmd.exe",
+    # Absolute paths
     "/bin/bash", "/bin/sh", "/usr/bin/python", "/usr/bin/python3",
+    "/usr/bin/ruby", "/usr/bin/perl", "/usr/bin/node",
 ])
 
 # Pipe-to-shell patterns are a strong signal regardless of the first token.
 _PIPE_SHELL_PATTERNS = (
     "| bash", "|bash", "| sh", "|sh", "| zsh", "|zsh",
     "| pwsh", "|pwsh", "| powershell", "|powershell",
-    "| python", "|python",
+    "| python", "|python", "| ruby", "|ruby",
+    "| perl", "|perl", "| node", "|node",
 )
 
 _MIN_LENGTH = 10
@@ -53,8 +72,10 @@ def _looks_like_command(text: str) -> bool:
     if any(p in lower for p in _PIPE_SHELL_PATTERNS):
         return True
 
-    # Check if the first word is a known shell command.
-    first_token = lower.split()[0].lstrip("$").rstrip(";").rstrip("(")
+    # Extract the first meaningful token.  Split on whitespace first, then on
+    # "(" to handle call syntax like exec(...) or eval(...) with no spaces.
+    first_token = lower.split()[0].lstrip("$").rstrip(";")
+    first_token = first_token.split("(")[0]
     return first_token in _COMMAND_STARTERS
 
 

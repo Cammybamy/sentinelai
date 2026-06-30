@@ -50,6 +50,7 @@ class TrayApp(QObject):
         self._app = app
         self._llm_model = llm_model
         self._paused = False
+        self._alert_active = False   # prevent stacking dialogs
 
         self._dashboard = DashboardWindow()
 
@@ -112,7 +113,13 @@ class TrayApp(QObject):
     def _on_verdict_ready(self, verdict: Verdict) -> None:
         if self._paused:
             return
+        # Drop new alerts while one is already on screen — prevents dialog stacking
+        # when clipboard changes rapidly or the same command is re-emitted.
+        if self._alert_active:
+            logger.debug("Alert already active, dropping verdict for: %s", verdict.risk_level)
+            return
 
+        self._alert_active = True
         self._tray.setIcon(_make_tray_icon(_RISK_COLOR.get(verdict.risk_level, "#dc2626")))
         self._tray.setToolTip(f"SentinelAI — {verdict.risk_level.value.upper()} risk detected")
 
@@ -133,6 +140,8 @@ class TrayApp(QObject):
             self._monitor.reset()
             # Send Ctrl+C to the terminal to cancel any already-pasted line.
             cancel_pasted_command(target_app=frontmost_app)
+
+        self._alert_active = False
 
         audit_log.record(verdict, decision, source="clipboard")
 

