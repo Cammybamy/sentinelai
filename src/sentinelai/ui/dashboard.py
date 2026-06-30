@@ -396,7 +396,7 @@ class DashboardWindow(QMainWindow):
         row.setCursor(Qt.CursorShape.PointingHandCursor)
 
         hl = QHBoxLayout(row)
-        hl.setContentsMargins(16, 0, 16, 0)
+        hl.setContentsMargins(16, 0, 20, 0)
         hl.setSpacing(12)
 
         # Left accent stripe
@@ -432,7 +432,7 @@ class DashboardWindow(QMainWindow):
             f"color: {'#ef4444' if is_blocked else '#22c55e'}; "
             f"font-size: 10px; font-weight: 700; letter-spacing: 0.8px; border: none;"
         )
-        dec.setFixedWidth(56)
+        dec.setMinimumWidth(72)
         dec.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         hl.addWidget(dec)
 
@@ -455,10 +455,10 @@ class DashboardWindow(QMainWindow):
             ["Time", "Risk", "Decision", "Source", "Command"]
         )
         self._audit_table.horizontalHeader().setStretchLastSection(True)
-        self._audit_table.setColumnWidth(0, 76)
-        self._audit_table.setColumnWidth(1, 86)
-        self._audit_table.setColumnWidth(2, 86)
-        self._audit_table.setColumnWidth(3, 80)
+        self._audit_table.setColumnWidth(0, 92)
+        self._audit_table.setColumnWidth(1, 90)
+        self._audit_table.setColumnWidth(2, 90)
+        self._audit_table.setColumnWidth(3, 84)
         self._audit_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._audit_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._audit_table.setShowGrid(False)
