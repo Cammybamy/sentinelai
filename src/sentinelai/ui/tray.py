@@ -3,9 +3,13 @@ from __future__ import annotations
 import logging
 import sys
 
+import platform
+
 from PyQt6.QtCore import QObject, Qt, pyqtSlot
-from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QAction, QColor, QCursor, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
+
+_IS_MAC = platform.system() == "Darwin"
 
 from ..core.models import RiskLevel, Verdict
 from ..monitors.clipboard import ClipboardMonitor
@@ -64,12 +68,15 @@ class TrayApp(QObject):
 
     def _build_menu(self) -> None:
         menu = QMenu()
-        menu.setStyleSheet(
-            "QMenu { background: #1a1a1a; color: #e5e5e5; border: 1px solid #333; font-size: 13px; }"
-            "QMenu::item { padding: 6px 20px; }"
-            "QMenu::item:selected { background: #2a2a2a; }"
-            "QMenu::separator { height: 1px; background: #333; margin: 4px 0; }"
-        )
+        # macOS renders native menu bar menus — custom dark stylesheets make
+        # the text invisible against the native background, so skip them on Mac.
+        if not _IS_MAC:
+            menu.setStyleSheet(
+                "QMenu { background: #1a1a1a; color: #e5e5e5; border: 1px solid #333; font-size: 13px; }"
+                "QMenu::item { padding: 6px 20px; }"
+                "QMenu::item:selected { background: #2a2a2a; }"
+                "QMenu::separator { height: 1px; background: #333; margin: 4px 0; }"
+            )
 
         status_action = QAction("🛡  SentinelAI", self)
         status_action.setEnabled(False)
@@ -137,7 +144,10 @@ class TrayApp(QObject):
         self._tray.setToolTip("SentinelAI — Monitoring clipboard")
 
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        # Single-click or double-click → open dashboard.
+        if _IS_MAC:
+            # macOS auto-shows the context menu via setContextMenu() on click —
+            # don't also call popup() here or you get two menus.
+            return
         if reason in (
             QSystemTrayIcon.ActivationReason.Trigger,
             QSystemTrayIcon.ActivationReason.DoubleClick,
