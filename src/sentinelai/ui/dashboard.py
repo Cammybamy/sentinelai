@@ -417,15 +417,17 @@ class DashboardWindow(QMainWindow):
         # Risk pill
         hl.addWidget(_risk_pill(entry.risk_level))
 
-        # Command preview — setMinimumWidth(0) lets Qt shrink this below its
-        # text width so the fixed-width decision label always gets its space.
-        cmd = QLabel(entry.command[:100].replace("\n", " "))
+        # Command preview.
+        # Policy.Ignored tells Qt to completely disregard this label's text-width
+        # when computing the layout — without it, long command strings overflow the
+        # row and squeeze out the decision label on the right.
+        cmd = QLabel(entry.command[:80].replace("\n", " "))
         cmd.setMinimumWidth(0)
         cmd.setStyleSheet(
             f"color: {_TEXT}; font-size: 12px; "
             f"font-family: 'Menlo', 'Consolas', monospace; border: none;"
         )
-        cmd.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        cmd.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         hl.addWidget(cmd, stretch=1)
 
         # Decision label — fixed width so the layout never squeezes it.
