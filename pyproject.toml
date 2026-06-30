@@ -23,6 +23,9 @@ dev = [
     "pytest-cov>=5.0",
 ]
 
+[project.scripts]
+sentinelai = "sentinelai.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

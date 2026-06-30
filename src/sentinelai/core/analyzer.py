@@ -37,10 +37,18 @@ def _verdict_from_rules(ctx: CommandContext, matches: list[RuleMatch]) -> Verdic
     )
 
 
-def _fallback_verdict(ctx: CommandContext, matches: list[RuleMatch]) -> Verdict:
-    """Used when LLM is unavailable and rule engine had no definitive match."""
+def _fallback_verdict(ctx: CommandContext, matches: list[RuleMatch], skip_llm: bool = False) -> Verdict:
+    """Used when LLM is unavailable (or intentionally skipped) and rules had no definitive match."""
     if matches:
         return _verdict_from_rules(ctx, matches)
+    if skip_llm:
+        # LLM was intentionally bypassed (e.g. shell hook). No rules fired = safe.
+        return Verdict(
+            command=ctx.command,
+            risk_level=RiskLevel.SAFE,
+            source=VerdictSource.RULE,
+            explanation="No known threat patterns detected.",
+        )
     return Verdict(
         command=ctx.command,
         risk_level=RiskLevel.LOW,
@@ -90,4 +98,4 @@ def analyze(
                 return llm_verdict
             logger.debug("LLM confidence too low (%.2f); falling back", confidence)
 
-    return _fallback_verdict(ctx, matches)
+    return _fallback_verdict(ctx, matches, skip_llm=skip_llm)
