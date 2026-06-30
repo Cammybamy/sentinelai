@@ -40,6 +40,7 @@ SHOULD_FLAG = [
 
 # Strings that should NOT trigger monitoring.
 SHOULD_NOT_FLAG = [
+    # Plain text / URLs
     "hello world",
     "https://github.com/user/repo",
     "https://example.com",
@@ -51,6 +52,15 @@ SHOULD_NOT_FLAG = [
     "1234567890",
     "",
     "   ",
+    # Safe interpreter invocations (no inline-exec flag)
+    "python -m pytest tests/ -v",
+    "python3 --version",
+    "python3 -m http.server 8080",
+    "node server.js",
+    "node --version",
+    "ruby my_script.rb",
+    "perl script.pl",
+    "php index.php",
 ]
 
 

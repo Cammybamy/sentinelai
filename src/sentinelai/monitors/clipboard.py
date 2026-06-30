@@ -11,25 +11,18 @@ from ..core.models import CommandContext, Verdict
 
 logger = logging.getLogger(__name__)
 
-# First token of the command must match one of these to be flagged.
+# First token always flags regardless of arguments.
 _COMMAND_STARTERS = frozenset([
     # Download tools
     "curl", "wget",
     # PowerShell
     "powershell", "powershell.exe", "pwsh", "pwsh.exe",
     "iex", "irm", "iwr", "invoke-expression", "invoke-webrequest", "start-process",
-    # POSIX shells
+    # POSIX shells — flagged unconditionally (no safe interactive use in clipboard context)
     "bash", "sh", "zsh", "fish", "dash",
-    # Interpreted languages (inline -c / -e / -r execution is a common attack vector)
-    "python", "python3", "python.exe",
-    "ruby", "ruby.exe",
-    "perl", "perl.exe",
-    "node", "node.exe",
-    "php", "php.exe",
-    "lua", "lua.exe",
-    # Dynamic evaluation — exec/eval as first word catches one-liner paste attacks
+    # Dynamic evaluation as standalone token
     "exec", "eval",
-    # Package runners
+    # Package runners (pip install / npm install social-engineering is common)
     "pip", "pip3", "pip.exe",
     "npm", "yarn", "npx", "pnpm",
     # Privilege escalation
@@ -45,6 +38,25 @@ _COMMAND_STARTERS = frozenset([
     "/bin/bash", "/bin/sh", "/usr/bin/python", "/usr/bin/python3",
     "/usr/bin/ruby", "/usr/bin/perl", "/usr/bin/node",
 ])
+
+# Interpreted languages that are only dangerous when used with an inline-execution
+# flag.  Running `python -m pytest` or `node server.js` is normal; running
+# `python -c "..."` or `node -e "..."` is an attack vector.
+_INLINE_EXEC_FLAGS: dict[str, tuple[str, ...]] = {
+    "python":     ("-c",),
+    "python3":    ("-c",),
+    "python.exe": ("-c",),
+    "ruby":       ("-e",),
+    "ruby.exe":   ("-e",),
+    "perl":       ("-e",),
+    "perl.exe":   ("-e",),
+    "node":       ("-e", "--eval"),
+    "node.exe":   ("-e", "--eval"),
+    "php":        ("-r",),
+    "php.exe":    ("-r",),
+    "lua":        ("-e",),
+    "lua.exe":    ("-e",),
+}
 
 # Pipe-to-shell patterns are a strong signal regardless of the first token.
 _PIPE_SHELL_PATTERNS = (
@@ -68,14 +80,20 @@ def _looks_like_command(text: str) -> bool:
 
     lower = stripped.lower()
 
-    # Strong signal: downloading and piping to a shell.
+    # Strong signal: piping output directly into a shell or interpreter.
     if any(p in lower for p in _PIPE_SHELL_PATTERNS):
         return True
 
-    # Extract the first meaningful token.  Split on whitespace first, then on
-    # "(" to handle call syntax like exec(...) or eval(...) with no spaces.
+    # Extract the first meaningful token.
+    # Split on "(" too so exec(...) / eval(...) with no leading space is caught.
     first_token = lower.split()[0].lstrip("$").rstrip(";")
     first_token = first_token.split("(")[0]
+
+    # For dual-use language runtimes, require an inline-execution flag.
+    # `python -m pytest` is fine; `python -c "..."` is not.
+    if first_token in _INLINE_EXEC_FLAGS:
+        return any(flag in lower.split() for flag in _INLINE_EXEC_FLAGS[first_token])
+
     return first_token in _COMMAND_STARTERS
 
 
