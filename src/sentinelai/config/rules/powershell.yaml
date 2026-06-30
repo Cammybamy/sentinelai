@@ -1,0 +1,107 @@
+# PowerShell-specific rules targeting common attacker techniques.
+
+- id: PS001
+  name: Encoded Command Execution
+  severity: critical
+  match: any
+  patterns:
+    - "(?i)-[Ee]nc(odedCommand)?\\s+[A-Za-z0-9+/]{20,}"
+    - "(?i)\\[System\\.Convert\\]::FromBase64String"
+    - "(?i)\\[Text\\.Encoding\\]::(UTF8|Unicode|ASCII)\\.GetString\\(\\[Convert\\]::FromBase64"
+  explanation: >
+    This command uses PowerShell's -EncodedCommand flag or Base64 decoding to hide
+    its true instructions inside an encoded blob. There is no legitimate reason
+    a support instruction or tool installer would need to hide its commands this way.
+    This is the single most common obfuscation technique used in PowerShell-based
+    malware and social engineering payloads.
+  tags: [obfuscation, powershell, critical]
+
+- id: PS002
+  name: Invoke-Expression with Remote Content
+  severity: critical
+  match: any
+  patterns:
+    - "(?i)(Invoke-Expression|IEX)\\s*\\("
+    - "(?i)(Invoke-Expression|IEX)\\s+\\$"
+    - "(?i)\\(New-Object\\s+Net\\.WebClient\\)\\.Download(String|File)"
+  explanation: >
+    Invoke-Expression (IEX) executes a string as a PowerShell command at runtime.
+    Combined with downloading content from the internet, this means PowerShell
+    fetches unknown code and runs it immediately — the attacker's server controls
+    exactly what gets executed, and it can change at any time.
+  tags: [remote-execution, powershell, critical]
+
+- id: PS003
+  name: AMSI Bypass Attempt
+  severity: critical
+  match: any
+  patterns:
+    - "(?i)amsiInitFailed"
+    - "(?i)\\[Ref\\]\\.Assembly\\.GetType\\(.{0,60}amsi"
+    - "(?i)amsiContext|amsiSession|AmsiScanBuffer"
+  explanation: >
+    This command attempts to disable Windows' Antimalware Scan Interface (AMSI),
+    which is the hook that allows security tools to inspect PowerShell scripts
+    before they run. Disabling AMSI is not a normal operation — it is done
+    specifically to run malware that would otherwise be detected.
+  tags: [defense-evasion, amsi-bypass, powershell, critical]
+
+- id: PS004
+  name: Execution Policy Bypass
+  severity: high
+  match: any
+  patterns:
+    - "(?i)-ExecutionPolicy\\s+(Bypass|Unrestricted|RemoteSigned)"
+    - "(?i)Set-ExecutionPolicy\\s+(Bypass|Unrestricted)"
+    - "(?i)powershell(\\.exe)?\\s+.*-[Ee][Pp]\\s+[Bb]ypass"
+  explanation: >
+    This command disables PowerShell's execution policy, which is a safety check
+    that prevents untrusted scripts from running automatically. Bypassing it is a
+    prerequisite for running most malicious PowerShell scripts and is not needed
+    for legitimate command-line operations.
+  tags: [defense-evasion, execution-policy, powershell]
+
+- id: PS005
+  name: Registry Persistence via PowerShell
+  severity: high
+  match: any
+  patterns:
+    - "(?i)Set-ItemProperty.{0,100}HKCU:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run"
+    - "(?i)New-ItemProperty.{0,100}HKLM:\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run"
+    - "(?i)reg\\s+add.{0,100}CurrentVersion\\\\Run"
+  explanation: >
+    This command writes a value to the Windows Registry under the "Run" key, which
+    causes a program to launch automatically every time you log in. This is a
+    classic persistence mechanism — attackers use it to ensure their malware
+    survives reboots.
+  tags: [persistence, registry, powershell]
+
+- id: PS006
+  name: Credential Dumping via PowerShell
+  severity: critical
+  match: any
+  patterns:
+    - "(?i)(mimikatz|sekurlsa|lsadump|kerberoast)"
+    - "(?i)Invoke-(Mimikatz|Kerberoast|DCSync)"
+    - "(?i)Get-Credential.{0,50}(export|out-file|ConvertTo-SecureString)"
+  explanation: >
+    This command references credential dumping tools or techniques (Mimikatz,
+    Kerberoasting, DCSync) used to extract password hashes and authentication
+    tokens from Windows memory. These are exclusively used in post-exploitation
+    attacks.
+  tags: [credential-theft, lateral-movement, powershell, critical]
+
+- id: PS007
+  name: PowerShell Window Hidden
+  severity: medium
+  match: any
+  patterns:
+    - "(?i)-WindowStyle\\s+Hidden"
+    - "(?i)-w\\s+hidden"
+    - "(?i)WindowStyle\\.Hidden"
+  explanation: >
+    This command runs PowerShell with a hidden window, meaning no console will
+    appear and you won't see what it's doing. Legitimate scripts run visibly.
+    Hiding the window is a common technique to run malicious payloads without
+    alerting the user.
+  tags: [defense-evasion, powershell]

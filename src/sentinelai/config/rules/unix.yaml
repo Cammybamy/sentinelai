@@ -1,0 +1,83 @@
+# Unix/Linux/macOS shell rules (also applies in WSL).
+
+- id: UNIX001
+  name: SSH Authorized Keys Injection
+  severity: critical
+  match: any
+  patterns:
+    - ">>\\s*~?/?\\.?ssh/authorized_keys"
+    - "echo.{0,100}ssh-(rsa|ed25519|ecdsa).{0,100}>>\\s*.*authorized_keys"
+  explanation: >
+    This command adds an SSH public key to your authorized_keys file. Doing so
+    grants the holder of the corresponding private key permanent, passwordless
+    remote access to your machine via SSH. Attackers plant their key to maintain
+    persistent access even if you change your password.
+  tags: [persistence, ssh, credential-implant, critical]
+
+- id: UNIX002
+  name: Chmod World-Writable or SUID on Binary
+  severity: high
+  match: any
+  patterns:
+    - "\\bchmod\\s+(\\+s|[0-9]*[24][0-9]{3}|777|a\\+[rwx])"
+    - "\\bchmod\\s+u\\+s\\b"
+  explanation: >
+    This command sets dangerous file permissions. World-writable permissions (777)
+    allow any user on the system to modify the file. SUID permission (chmod +s)
+    causes the program to run as its owner (often root) regardless of who executes
+    it — a common privilege escalation vector.
+  tags: [privilege-escalation, filesystem]
+
+- id: UNIX003
+  name: /etc/passwd or /etc/shadow Access
+  severity: high
+  match: any
+  patterns:
+    - "/etc/(passwd|shadow|sudoers|crontab)"
+    - "\\bnsswitch\\.conf\\b"
+  explanation: >
+    This command accesses system authentication files. /etc/shadow contains hashed
+    passwords for every user on the system. /etc/sudoers controls who can run
+    commands as root. Reading or modifying these files is a standard step in
+    credential theft and privilege escalation.
+  tags: [credential-theft, privilege-escalation]
+
+- id: UNIX004
+  name: Disable Firewall
+  severity: high
+  match: any
+  patterns:
+    - "\\b(ufw|iptables|firewall-cmd)\\b.{0,50}\\b(disable|stop|flush|--flush|-F)"
+    - "\\bsystemctl\\s+(stop|disable)\\s+(ufw|firewalld|iptables)"
+  explanation: >
+    This command disables or flushes your system's firewall rules. Attackers do
+    this after gaining access to make it easier to communicate back to their
+    infrastructure and to allow other machines to connect inbound without restriction.
+  tags: [defense-evasion, network]
+
+- id: UNIX005
+  name: Nohup or Background Persistence
+  severity: medium
+  match: all
+  patterns:
+    - "\\b(nohup|disown)\\b"
+    - "https?://"
+  explanation: >
+    This command downloads and runs something in the background using nohup or
+    disown, which detaches it from your terminal session so it continues running
+    even after you log out. This is a common technique to run persistent malware.
+  tags: [persistence]
+
+- id: UNIX006
+  name: Modification of Shell Profile
+  severity: high
+  match: any
+  patterns:
+    - ">>\\s*~?/?\\.?(bashrc|zshrc|bash_profile|profile|zprofile|fish/config\\.fish)"
+    - "echo.{0,100}>>\\s*.*\\.(bashrc|zshrc|profile)"
+  explanation: >
+    This command appends code to your shell's startup file (.bashrc, .zshrc, etc.).
+    Any code added here runs automatically every time you open a terminal. Attackers
+    use this to maintain persistence and to load malicious functions or aliases that
+    intercept your future commands.
+  tags: [persistence, shell-profile]

@@ -1,0 +1,115 @@
+# Universal rules that apply across all shells.
+
+- id: BASE001
+  name: Remote Script Pipe Execution
+  severity: critical
+  match: all
+  patterns:
+    - "(curl|wget|Invoke-WebRequest|iwr|irm)\\b"
+    - "\\|\\s*(bash|sh|zsh|powershell|pwsh|cmd)\\b"
+  explanation: >
+    This command downloads a script from the internet and immediately executes it
+    without saving it to disk first. You have no opportunity to inspect what the
+    script contains before it runs on your machine with your permissions. This is
+    one of the most common techniques used in supply-chain and social engineering
+    attacks.
+  tags: [remote-execution, pipe-execution, critical]
+
+- id: BASE002
+  name: Remote Script Download and Execute (Two-Step)
+  severity: critical
+  match: all
+  patterns:
+    - "(curl|wget|Invoke-WebRequest|iwr|irm)\\b.{0,200}\\b(http|https|ftp)://"
+    - "\\b(chmod\\s+\\+x|Start-Process|Invoke-Expression|iex|bash|sh|pwsh)\\b"
+  explanation: >
+    This command downloads a file from a remote URL and then executes it.
+    Even when split across two steps, running downloaded executables from
+    untrusted sources is a primary malware delivery technique.
+  tags: [remote-execution, download-and-execute]
+
+- id: BASE003
+  name: Privilege Escalation Attempt
+  severity: high
+  match: any
+  patterns:
+    - "\\bsudo\\s+(su|bash|sh|zsh|fish|dash)\\b"
+    - "\\bsudo\\s+-s\\b"
+    - "\\brunas\\s+/user:administrator\\b"
+  explanation: >
+    This command attempts to open an interactive shell as the root or administrator
+    user. Attackers use this to gain persistent elevated access to a system after
+    an initial foothold.
+  tags: [privilege-escalation]
+
+- id: BASE004
+  name: Recursive Deletion of Critical Paths
+  severity: critical
+  match: any
+  patterns:
+    - "\\brm\\s+(-[a-zA-Z]*r[a-zA-Z]*f|--recursive).{0,50}(/|~|\\$HOME|\\$env:)"
+    - "\\bRemove-Item\\s+(-[a-zA-Z]+\\s+)*-Recurse.{0,50}(C:\\\\|/)"
+    - "\\bdel\\s+/[sS].{0,50}(C:\\\\Windows|C:\\\\System)"
+  explanation: >
+    This command recursively deletes files starting from a root or home directory.
+    If run, it can permanently destroy your operating system, personal files, or
+    both. There is no undo. This is a classic destructive payload in social
+    engineering attacks ("run this to fix your problem").
+  tags: [destructive, filesystem]
+
+- id: BASE005
+  name: Outbound Data Exfiltration Pattern
+  severity: high
+  match: all
+  patterns:
+    - "(curl|wget|Invoke-WebRequest|nc|ncat|netcat)\\b"
+    - "(\\$env:|\\$HOME|/etc/passwd|/etc/shadow|id_rsa|\\.ssh|SAM|NTDS)"
+  explanation: >
+    This command reads sensitive files (credentials, SSH keys, password databases)
+    and transmits them to a remote server. This is a data exfiltration pattern
+    used to steal credentials and private keys.
+  tags: [exfiltration, credential-theft]
+
+- id: BASE006
+  name: Reverse Shell Initiation
+  severity: critical
+  match: any
+  patterns:
+    - "\\b(nc|ncat|netcat)\\s+(-[a-zA-Z]*e[a-zA-Z]*\\s|.{0,30}\\b(bash|sh|cmd|powershell))"
+    - "bash\\s+-i\\s+>&?\\s*/dev/tcp/"
+    - "\\$client\\s*=\\s*New-Object\\s+Net\\.Sockets\\.TCPClient"
+    - "python[23]?\\s+-c.{0,100}socket\\.connect"
+  explanation: >
+    This command opens a reverse shell — a persistent, encrypted connection from
+    your machine back to an attacker's server. Once established, the attacker has
+    full interactive control over your terminal. This is what attackers run
+    immediately after gaining initial access.
+  tags: [reverse-shell, remote-access, critical]
+
+- id: BASE007
+  name: Crontab or Scheduled Task Persistence
+  severity: high
+  match: any
+  patterns:
+    - "\\bcrontab\\b.{0,50}(-[el]|\\|)"
+    - "echo.{0,100}>>\\s*/etc/cron"
+    - "\\bschtasks\\b.{0,100}/create\\b"
+  explanation: >
+    This command adds a scheduled task or crontab entry. Attackers use persistence
+    mechanisms like these to ensure their malware restarts automatically after
+    reboots, making it much harder to remove.
+  tags: [persistence, scheduled-task]
+
+- id: BASE008
+  name: Known Malicious Domain Pattern
+  severity: high
+  match: any
+  patterns:
+    - "https?://(bit\\.ly|tinyurl\\.com|t\\.co|is\\.gd|rb\\.gy)/"
+    - "https?://\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}/"
+  explanation: >
+    This command contacts either a URL shortener (which hides the true destination)
+    or a raw IP address (which bypasses domain reputation checks). Legitimate
+    software installers use stable, branded domains — not shortened links or
+    bare IP addresses.
+  tags: [suspicious-url, obfuscation]

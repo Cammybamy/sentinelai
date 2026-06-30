@@ -1,0 +1,75 @@
+# Rules targeting obfuscation techniques used to evade detection.
+
+- id: OBF001
+  name: Long Base64 Blob in Command
+  severity: high
+  match: any
+  patterns:
+    - "[A-Za-z0-9+/]{80,}={0,2}"
+  explanation: >
+    This command contains a large Base64-encoded string. While Base64 is used
+    legitimately, embedding it directly in a command is a strong signal of
+    obfuscation — the actual instructions are hidden inside the blob and cannot
+    be understood without decoding. Inspect the decoded content before running.
+  tags: [obfuscation, base64]
+
+- id: OBF002
+  name: Character Code Construction
+  severity: high
+  match: any
+  patterns:
+    - "\\[char\\]\\s*\\d+.{0,10}(\\+|\\[char\\])"
+    - "-join\\s*\\(.{0,30}\\[char\\]"
+    - "chr\\(\\d+\\).{0,10}(\\+|chr\\()"
+  explanation: >
+    This command builds a string by concatenating character codes (e.g.,
+    [char]115 + [char]104 = "sh"). This technique is used to spell out dangerous
+    function names or URLs character-by-character to prevent pattern matching
+    from detecting them at a glance.
+  tags: [obfuscation, char-concat]
+
+- id: OBF003
+  name: String Reversal or Splitting Obfuscation
+  severity: medium
+  match: any
+  patterns:
+    - "(?i)-join\\s*\\(.{0,50}-1\\)"
+    - "(?i)\\[Regex\\]::Unescape"
+    - "(?i)\\.replace\\(['\"].+?['\"],\\s*['\"]['\"]\\)"
+    - "(?i)\\[string\\]::Concat.{0,200}\\[string\\]::Concat"
+  explanation: >
+    This command uses string manipulation (reversing, splitting, or chained
+    .Replace() calls) to reconstruct hidden commands at runtime. This is a
+    layer of obfuscation designed to make the command look harmless to human
+    reviewers and basic scanners.
+  tags: [obfuscation]
+
+- id: OBF004
+  name: Environment Variable Payload Construction
+  severity: medium
+  match: any
+  patterns:
+    - "\\$env:[A-Za-z_]+\\s*\\+\\s*\\$env:[A-Za-z_]+"
+    - "\\$\\{[A-Za-z_:]+\\}\\s*\\+\\s*\\$\\{[A-Za-z_:]+\\}"
+    - "\\[Environment\\]::GetEnvironmentVariable.{0,100}\\+"
+  explanation: >
+    This command assembles a payload string from multiple environment variables
+    concatenated together. Attackers pre-stage command fragments in environment
+    variables and combine them at runtime to evade detection — no single variable
+    looks suspicious on its own.
+  tags: [obfuscation, env-vars]
+
+- id: OBF005
+  name: Unicode or Lookalike Character Substitution
+  severity: medium
+  match: any
+  patterns:
+    - "[\\u0430-\\u044f\\u0400-\\u042f\\u0250-\\u02AF]"
+    - "\\\\u00[0-9a-fA-F]{2}"
+  explanation: >
+    This command contains Unicode characters from non-Latin scripts (Cyrillic,
+    IPA, etc.) that visually resemble ASCII letters. For example, the Cyrillic
+    "а" looks identical to the Latin "a" but is a different character. Attackers
+    use this to make a command look familiar while actually calling a different
+    function or URL.
+  tags: [obfuscation, unicode-spoofing]

