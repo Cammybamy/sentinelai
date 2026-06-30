@@ -417,8 +417,10 @@ class DashboardWindow(QMainWindow):
         # Risk pill
         hl.addWidget(_risk_pill(entry.risk_level))
 
-        # Command preview
+        # Command preview — setMinimumWidth(0) lets Qt shrink this below its
+        # text width so the fixed-width decision label always gets its space.
         cmd = QLabel(entry.command[:100].replace("\n", " "))
+        cmd.setMinimumWidth(0)
         cmd.setStyleSheet(
             f"color: {_TEXT}; font-size: 12px; "
             f"font-family: 'Menlo', 'Consolas', monospace; border: none;"
@@ -426,13 +428,13 @@ class DashboardWindow(QMainWindow):
         cmd.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         hl.addWidget(cmd, stretch=1)
 
-        # Decision label
+        # Decision label — fixed width so the layout never squeezes it.
         dec = QLabel("BLOCKED" if is_blocked else "ALLOWED")
         dec.setStyleSheet(
             f"color: {'#ef4444' if is_blocked else '#22c55e'}; "
             f"font-size: 10px; font-weight: 700; letter-spacing: 0.8px; border: none;"
         )
-        dec.setMinimumWidth(72)
+        dec.setFixedWidth(76)
         dec.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         hl.addWidget(dec)
 
