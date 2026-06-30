@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 
 from PyQt6.QtCore import QObject, Qt, pyqtSlot
 from PyQt6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
@@ -12,6 +11,7 @@ from ..core.models import RiskLevel, Verdict
 from ..monitors.clipboard import ClipboardMonitor
 from ..storage import audit_log
 from .alert_dialog import AlertDialog
+from .dashboard import DashboardWindow
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,6 @@ _RISK_COLOR: dict[RiskLevel, str] = {
 
 
 def _make_tray_icon(color: str = "#16a34a") -> QIcon:
-    """Generate a simple colored shield icon programmatically."""
     size = 22
     pix = QPixmap(size, size)
     pix.fill(Qt.GlobalColor.transparent)
@@ -33,10 +32,8 @@ def _make_tray_icon(color: str = "#16a34a") -> QIcon:
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
     painter.setBrush(QColor(color))
     painter.setPen(Qt.PenStyle.NoPen)
-    # Draw a rounded square as a minimal shield stand-in.
     painter.drawRoundedRect(2, 2, size - 4, size - 4, 4, 4)
     painter.setPen(QColor("#ffffff"))
-    painter.setFont(painter.font())
     painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, "S")
     painter.end()
     return QIcon(pix)
@@ -48,7 +45,8 @@ class TrayApp(QObject):
         self._app = app
         self._llm_model = llm_model
         self._paused = False
-        self._pending_verdict: Verdict | None = None
+
+        self._dashboard = DashboardWindow()
 
         self._tray = QSystemTrayIcon(self)
         self._tray.setIcon(_make_tray_icon("#16a34a"))
@@ -67,13 +65,21 @@ class TrayApp(QObject):
     def _build_menu(self) -> None:
         menu = QMenu()
         menu.setStyleSheet(
-            "QMenu { background: #1a1a1a; color: #e5e5e5; border: 1px solid #333; }"
+            "QMenu { background: #1a1a1a; color: #e5e5e5; border: 1px solid #333; font-size: 13px; }"
+            "QMenu::item { padding: 6px 20px; }"
             "QMenu::item:selected { background: #2a2a2a; }"
+            "QMenu::separator { height: 1px; background: #333; margin: 4px 0; }"
         )
 
-        status_action = QAction("🛡  SentinelAI — Active", self)
+        status_action = QAction("🛡  SentinelAI", self)
         status_action.setEnabled(False)
         menu.addAction(status_action)
+        menu.addSeparator()
+
+        dashboard_action = QAction("Open Dashboard", self)
+        dashboard_action.triggered.connect(self._show_dashboard)
+        menu.addAction(dashboard_action)
+
         menu.addSeparator()
 
         self._pause_action = QAction("Pause Monitoring", self)
@@ -88,15 +94,19 @@ class TrayApp(QObject):
 
         self._tray.setContextMenu(menu)
 
+    def _show_dashboard(self) -> None:
+        self._dashboard.refresh()
+        self._dashboard.show()
+        self._dashboard.raise_()
+        self._dashboard.activateWindow()
+
     @pyqtSlot(object)
     def _on_verdict_ready(self, verdict: Verdict) -> None:
         if self._paused:
             return
 
         self._tray.setIcon(_make_tray_icon(_RISK_COLOR.get(verdict.risk_level, "#dc2626")))
-        self._tray.setToolTip(
-            f"SentinelAI — {verdict.risk_level.value.upper()} risk detected"
-        )
+        self._tray.setToolTip(f"SentinelAI — {verdict.risk_level.value.upper()} risk detected")
 
         dialog = AlertDialog(verdict)
         dialog.exec()
@@ -111,6 +121,10 @@ class TrayApp(QObject):
             decision,
         )
 
+        # Refresh dashboard if it's open.
+        if self._dashboard.isVisible():
+            self._dashboard.refresh()
+
         if decision == "blocked":
             self._tray.showMessage(
                 "Command Blocked",
@@ -119,18 +133,16 @@ class TrayApp(QObject):
                 3000,
             )
 
-        # Reset icon to green (safe/idle) after interaction.
         self._tray.setIcon(_make_tray_icon("#16a34a"))
         self._tray.setToolTip("SentinelAI — Monitoring clipboard")
 
     def _on_tray_activated(self, reason: QSystemTrayIcon.ActivationReason) -> None:
-        if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
-            self._tray.showMessage(
-                "SentinelAI",
-                "Monitoring your clipboard for dangerous commands.",
-                QSystemTrayIcon.MessageIcon.Information,
-                2000,
-            )
+        # Single-click or double-click → open dashboard.
+        if reason in (
+            QSystemTrayIcon.ActivationReason.Trigger,
+            QSystemTrayIcon.ActivationReason.DoubleClick,
+        ):
+            self._show_dashboard()
 
     def _toggle_pause(self) -> None:
         self._paused = not self._paused
@@ -138,21 +150,24 @@ class TrayApp(QObject):
             self._pause_action.setText("Resume Monitoring")
             self._tray.setIcon(_make_tray_icon("#666666"))
             self._tray.setToolTip("SentinelAI — Paused")
+            self._dashboard.set_monitoring_state(False)
         else:
             self._pause_action.setText("Pause Monitoring")
             self._tray.setIcon(_make_tray_icon("#16a34a"))
             self._tray.setToolTip("SentinelAI — Monitoring clipboard")
+            self._dashboard.set_monitoring_state(True)
 
     def _quit(self) -> None:
         self._monitor.stop()
         self._monitor.wait(2000)
         self._tray.hide()
+        self._dashboard.close()
         self._app.quit()
 
 
 def run(llm_model: str = "llama3.1:8b") -> None:
     app = QApplication(sys.argv)
-    app.setQuitOnLastWindowClosed(False)  # Keep running even with no windows open.
+    app.setQuitOnLastWindowClosed(False)
 
     if not QSystemTrayIcon.isSystemTrayAvailable():
         QMessageBox.critical(None, "SentinelAI", "System tray is not available on this desktop.")

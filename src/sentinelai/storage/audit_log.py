@@ -55,6 +55,28 @@ def record(verdict: Verdict, decision: UserDecision, shell: str = "unknown", sou
     return cur.lastrowid
 
 
+def stats_today() -> dict[str, int]:
+    """Return analyzed/blocked/allowed counts for today (UTC)."""
+    conn = get_connection()
+    today = datetime.now(timezone.utc).date().isoformat()
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN user_decision = 'blocked' THEN 1 ELSE 0 END) AS blocked,
+            SUM(CASE WHEN user_decision = 'allowed' THEN 1 ELSE 0 END) AS allowed
+        FROM audit_log
+        WHERE timestamp LIKE ?
+        """,
+        (f"{today}%",),
+    ).fetchone()
+    return {
+        "total":   row["total"]   or 0,
+        "blocked": row["blocked"] or 0,
+        "allowed": row["allowed"] or 0,
+    }
+
+
 def recent(limit: int = 100) -> list[AuditEntry]:
     """Return the most recent audit entries, newest first."""
     conn = get_connection()
