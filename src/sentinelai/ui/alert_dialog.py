@@ -179,7 +179,7 @@ class AlertDialog(QDialog):
         btn_layout.setContentsMargins(20, 14, 20, 14)
         btn_layout.setSpacing(10)
 
-        advice = QLabel("Review the command carefully before allowing it to run.")
+        advice = QLabel("Blocking clears your clipboard and cancels any pasted command.")
         advice.setStyleSheet("color: #666666; font-size: 11px;")
         advice.setWordWrap(True)
         btn_layout.addWidget(advice, stretch=1)
@@ -194,7 +194,7 @@ class AlertDialog(QDialog):
         allow_btn.clicked.connect(self._on_allow)
         btn_layout.addWidget(allow_btn)
 
-        block_btn = QPushButton("Block  (Recommended)")
+        block_btn = QPushButton("Block & Clear Clipboard")
         block_btn.setFixedHeight(36)
         block_btn.setDefault(True)
         block_btn.setStyleSheet(

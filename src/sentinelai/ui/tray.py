@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 _IS_MAC = platform.system() == "Darwin"
 
 from ..core.models import RiskLevel, Verdict
+from ..core.platform_utils import cancel_pasted_command, clear_clipboard
 from ..monitors.clipboard import ClipboardMonitor
 from ..storage import audit_log
 from .alert_dialog import AlertDialog
@@ -119,6 +120,14 @@ class TrayApp(QObject):
         dialog.exec()
 
         decision = dialog.user_decision
+
+        if decision == "blocked":
+            # Clear clipboard immediately so the command can't be re-pasted.
+            clear_clipboard()
+            # Send Ctrl+C to the terminal after focus returns — cancels any
+            # already-pasted line that hasn't been executed yet.
+            cancel_pasted_command()
+
         audit_log.record(verdict, decision, source="clipboard")
 
         logger.info(
@@ -135,9 +144,9 @@ class TrayApp(QObject):
         if decision == "blocked":
             self._tray.showMessage(
                 "Command Blocked",
-                f"SentinelAI blocked a {verdict.risk_level.value} risk command.",
+                "Clipboard cleared. If you already pasted this command, it has been cancelled.",
                 QSystemTrayIcon.MessageIcon.Warning,
-                3000,
+                4000,
             )
 
         self._tray.setIcon(_make_tray_icon("#16a34a"))
