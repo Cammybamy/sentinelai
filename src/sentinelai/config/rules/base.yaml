@@ -113,3 +113,18 @@
     software installers use stable, branded domains — not shortened links or
     bare IP addresses.
   tags: [suspicious-url, obfuscation]
+
+- id: BASE009
+  name: Interpreter Inline Remote Code Execution
+  severity: critical
+  match: all
+  patterns:
+    - "\\b(ruby|perl|python[23]?|node|php|lua)\\s+(-e|-c|-r|--eval)\\b"
+    - "https?://"
+  explanation: >
+    This command uses a scripting language's built-in HTTP library to fetch and
+    execute code inline, bypassing curl and wget entirely. This technique is
+    increasingly common in social engineering attacks specifically because it
+    evades tools that only watch for "curl | bash" patterns. The result is
+    identical: arbitrary code from the internet runs on your machine.
+  tags: [remote-execution, inline-exec, critical]
