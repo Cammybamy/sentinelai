@@ -94,5 +94,11 @@ class ClipboardMonitor(QThread):
 
         logger.info("Clipboard monitor stopped")
 
+    def reset(self) -> None:
+        """Reset tracking so the next clipboard read is treated as new content.
+        Call this after clearing the clipboard on Block so the same command
+        triggers a fresh alert if the user copies it again immediately."""
+        self._last_seen = ""
+
     def stop(self) -> None:
         self._running = False

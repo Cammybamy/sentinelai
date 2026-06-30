@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 _IS_MAC = platform.system() == "Darwin"
 
 from ..core.models import RiskLevel, Verdict
-from ..core.platform_utils import cancel_pasted_command, clear_clipboard
+from ..core.platform_utils import cancel_pasted_command, clear_clipboard, get_frontmost_app
 from ..monitors.clipboard import ClipboardMonitor
 from ..storage import audit_log
 from .alert_dialog import AlertDialog
@@ -116,17 +116,23 @@ class TrayApp(QObject):
         self._tray.setIcon(_make_tray_icon(_RISK_COLOR.get(verdict.risk_level, "#dc2626")))
         self._tray.setToolTip(f"SentinelAI — {verdict.risk_level.value.upper()} risk detected")
 
+        # Capture the active app NOW, before the dialog steals focus.
+        # This lets us send Ctrl+C back to the right terminal window after Block.
+        frontmost_app = get_frontmost_app()
+
         dialog = AlertDialog(verdict)
         dialog.exec()
 
         decision = dialog.user_decision
 
         if decision == "blocked":
-            # Clear clipboard immediately so the command can't be re-pasted.
+            # Clear clipboard so the command can't be re-pasted.
             clear_clipboard()
-            # Send Ctrl+C to the terminal after focus returns — cancels any
-            # already-pasted line that hasn't been executed yet.
-            cancel_pasted_command()
+            # Reset the monitor's last-seen state so the same command will
+            # trigger a fresh alert if the user copies it again immediately.
+            self._monitor.reset()
+            # Send Ctrl+C to the terminal to cancel any already-pasted line.
+            cancel_pasted_command(target_app=frontmost_app)
 
         audit_log.record(verdict, decision, source="clipboard")
 
