@@ -62,7 +62,7 @@ def _fallback_verdict(ctx: CommandContext, matches: list[RuleMatch], skip_llm: b
 
 def analyze(
     ctx: CommandContext,
-    llm_model: str = "llama3.1:8b",
+    llm_model: str = "llama3:latest",
     skip_llm: bool = False,
 ) -> Verdict:
     """

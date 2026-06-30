@@ -9,7 +9,7 @@ _SETTINGS_PATH = Path.home() / ".sentinelai" / "config.json"
 
 @dataclass
 class AppSettings:
-    llm_model: str = "llama3.1:8b"
+    llm_model: str = "llama3:latest"
     python_path: str = ""
     installed_at: str = ""
     version: str = "0.1.0"

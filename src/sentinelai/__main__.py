@@ -10,5 +10,5 @@ logging.basicConfig(
 from sentinelai.ui.tray import run
 
 if __name__ == "__main__":
-    llm_model = sys.argv[1] if len(sys.argv) > 1 else "llama3.1:8b"
+    llm_model = sys.argv[1] if len(sys.argv) > 1 else "llama3:latest"
     run(llm_model=llm_model)

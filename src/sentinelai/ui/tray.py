@@ -44,7 +44,7 @@ def _make_tray_icon(color: str = "#16a34a") -> QIcon:
 
 
 class TrayApp(QObject):
-    def __init__(self, app: QApplication, llm_model: str = "llama3.1:8b") -> None:
+    def __init__(self, app: QApplication, llm_model: str = "llama3:latest") -> None:
         super().__init__()
         self._app = app
         self._llm_model = llm_model

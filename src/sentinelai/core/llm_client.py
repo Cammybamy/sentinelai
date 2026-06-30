@@ -45,8 +45,23 @@ _RISK_MAP: dict[str, RiskLevel] = {
 }
 
 
+def _extract_json(raw: str) -> str:
+    """Strip markdown fences and extract the first JSON object from the response."""
+    # Remove ```json ... ``` or ``` ... ``` wrappers the model sometimes adds.
+    raw = raw.strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+    # Find the outermost { } block in case there's surrounding prose.
+    start = raw.find("{")
+    end = raw.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        raw = raw[start : end + 1]
+    return raw
+
+
 def _parse_response(raw: str, ctx: CommandContext) -> Verdict:
-    data: dict[str, Any] = json.loads(raw)
+    data: dict[str, Any] = json.loads(_extract_json(raw))
     risk_level = _RISK_MAP.get(data.get("risk_level", "medium"), RiskLevel.MEDIUM)
     return Verdict(
         command=ctx.command,
@@ -58,7 +73,7 @@ def _parse_response(raw: str, ctx: CommandContext) -> Verdict:
     )
 
 
-def analyze(ctx: CommandContext, model: str = "llama3.1:8b") -> Verdict | None:
+def analyze(ctx: CommandContext, model: str = "llama3:latest") -> Verdict | None:
     """
     Send the command to a local Ollama model for analysis.
     Returns None if Ollama is unavailable or returns unparseable output.

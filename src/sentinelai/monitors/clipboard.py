@@ -65,7 +65,7 @@ class ClipboardMonitor(QThread):
     """
     verdict_ready = pyqtSignal(object)  # Verdict
 
-    def __init__(self, poll_interval: float = 0.5, llm_model: str = "llama3.1:8b") -> None:
+    def __init__(self, poll_interval: float = 0.5, llm_model: str = "llama3:latest") -> None:
         super().__init__()
         self._poll_interval = poll_interval
         self._llm_model = llm_model
